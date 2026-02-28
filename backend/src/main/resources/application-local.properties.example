@@ -1,0 +1,6 @@
+# ===== Local Override — NOT committed to Git =====
+# Copy this file to application-local.properties and fill in your real values.
+# application-local.properties is in .gitignore.
+
+# Database password (override here locally)
+spring.datasource.password=your_local_password_here
