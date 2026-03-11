@@ -28,15 +28,15 @@ import java.util.List;
  * SecurityConfig — Core Spring Security configuration.
  *
  * Key decisions:
- *   - CSRF disabled (stateless REST API, JWT-based auth)
- *   - Sessions are STATELESS (no server-side sessions)
- *   - CORS enabled to allow Next.js frontend (localhost:3000)
- *   - Public routes: /api/auth/register, /api/auth/login
- *   - All other routes require a valid JWT token
+ * - CSRF disabled (stateless REST API, JWT-based auth)
+ * - Sessions are STATELESS (no server-side sessions)
+ * - CORS enabled to allow Next.js frontend (localhost:3000)
+ * - Public routes: /api/auth/register, /api/auth/login
+ * - All other routes require a valid JWT token
  */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity           // Enables @PreAuthorize on controllers
+@EnableMethodSecurity // Enables @PreAuthorize on controllers
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -47,8 +47,9 @@ public class SecurityConfig {
     private static final String[] PUBLIC_URLS = {
             "/api/auth/register",
             "/api/auth/login",
-            "/v3/api-docs/**",   // Swagger (if added later)
-            "/swagger-ui/**"     // Swagger UI (if added later)
+            "/v3/api-docs/**", // Swagger (if added later)
+            "/swagger-ui/**",
+            "/api/insurance"// Swagger UI (if added later)
     };
 
     /**
@@ -57,28 +58,27 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-            // Disable CSRF (not needed for stateless JWT APIs)
-            .csrf(AbstractHttpConfigurer::disable)
+                // Disable CSRF (not needed for stateless JWT APIs)
+                .csrf(AbstractHttpConfigurer::disable)
 
-            // CORS configuration (allow Next.js frontend)
-            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                // CORS configuration (allow Next.js frontend)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-            // Authorization rules
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers(PUBLIC_URLS).permitAll()  // Public routes
-                .anyRequest().authenticated()               // Everything else needs JWT
-            )
+                // Authorization rules
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(PUBLIC_URLS).permitAll() // Public routes
+                        .anyRequest().authenticated() // Everything else needs JWT
+                )
 
-            // Stateless session (JWT is self-contained, no server session needed)
-            .sessionManagement(session -> session
-                .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
-            )
+                // Stateless session (JWT is self-contained, no server session needed)
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-            // Use our custom auth provider
-            .authenticationProvider(authenticationProvider())
+                // Use our custom auth provider
+                .authenticationProvider(authenticationProvider())
 
-            // Add JWT filter BEFORE Spring's default username/password filter
-            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+                // Add JWT filter BEFORE Spring's default username/password filter
+                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }
@@ -90,8 +90,8 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(
-                "http://localhost:3000",   // Next.js dev server
-                "http://localhost:3001"    // Alternative Next.js port
+                "http://localhost:3000", // Next.js dev server
+                "http://localhost:3001" // Alternative Next.js port
         ));
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
@@ -114,7 +114,8 @@ public class SecurityConfig {
     }
 
     /**
-     * AuthenticationManager — required by AuthService to authenticate login requests.
+     * AuthenticationManager — required by AuthService to authenticate login
+     * requests.
      */
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config)
