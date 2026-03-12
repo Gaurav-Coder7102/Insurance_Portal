@@ -11,6 +11,9 @@ A full-stack insurance management portal.
 ## 👥 Team
 - **Gaurav** — Backend Developer
 - **Rahul** — Backend Developer
+- **Ankush** -Front end Developer
+- **Pushkar** -Front End Developer
+  
 
 ---
 
@@ -57,6 +60,7 @@ curl -X POST http://localhost:9191/api/auth/login \
 ```
 
 ---
+<img width="933" height="584" alt="image" src="https://github.com/user-attachments/assets/fe53d7cf-dc47-4a3c-a99a-90bbe0c77dd3" />
 
 ## 🌿 Git Branching Strategy
 
