@@ -3,11 +3,13 @@ package com.insuranceportal.service;
 import com.insuranceportal.dto.AuthResponse;
 import com.insuranceportal.dto.LoginRequest;
 import com.insuranceportal.dto.RegisterRequest;
+import com.insuranceportal.model.RefreshToken;
 import com.insuranceportal.model.User;
 import com.insuranceportal.repository.UserRepository;
 import com.insuranceportal.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -28,11 +30,15 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 public class AuthService {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtUtil jwtUtil;
+    private final UserRepository        userRepository;
+    private final PasswordEncoder       passwordEncoder;
+    private final JwtUtil               jwtUtil;
     private final AuthenticationManager authenticationManager;
-    private final UserDetailsService userDetailsService;
+    private final UserDetailsService    userDetailsService;
+    private final RefreshTokenService   refreshTokenService;
+
+    @Value("${app.jwt.expiration-ms}")
+    private long jwtExpirationMs;
 
     // ===== Register =====
 
@@ -77,11 +83,12 @@ public class AuthService {
         User savedUser = userRepository.save(user);
         log.info("New user registered: {} ({})", savedUser.getUsername(), savedUser.getEmail());
 
-        // Step 4: Generate JWT
+        // Step 4: Generate JWT + Refresh Token
         UserDetails userDetails = userDetailsService.loadUserByUsername(savedUser.getEmail());
         String token = jwtUtil.generateToken(userDetails);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(savedUser);
 
-        return buildAuthResponse(token, savedUser);
+        return buildAuthResponse(token, refreshToken.getToken(), savedUser);
     }
 
     // ===== Login =====
@@ -116,20 +123,23 @@ public class AuthService {
 
         log.info("User logged in: {}", user.getEmail());
 
-        // Step 3: Generate JWT
+        // Step 3: Generate JWT + Refresh Token
         UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
         String token = jwtUtil.generateToken(userDetails);
+        RefreshToken refreshToken = refreshTokenService.createRefreshToken(user);
 
         // Step 4: Return response
-        return buildAuthResponse(token, user);
+        return buildAuthResponse(token, refreshToken.getToken(), user);
     }
 
     // ===== Helper =====
 
-    private AuthResponse buildAuthResponse(String token, User user) {
+    private AuthResponse buildAuthResponse(String token, String refreshToken, User user) {
         return AuthResponse.builder()
                 .token(token)
+                .refreshToken(refreshToken)
                 .type("Bearer")
+                .expiresIn(jwtExpirationMs)
                 .id(user.getId())
                 .username(user.getUsername())
                 .email(user.getEmail())

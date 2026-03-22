@@ -47,9 +47,10 @@ public class SecurityConfig {
     private static final String[] PUBLIC_URLS = {
             "/api/auth/register",
             "/api/auth/login",
-            "/v3/api-docs/**", // Swagger (if added later)
+            "/api/auth/refresh",          // Refresh token endpoint — no JWT needed
+            "/v3/api-docs/**",            // Swagger
             "/swagger-ui/**",
-            "/api/insurance"// Swagger UI (if added later)
+            "/api/insurance"
     };
 
     /**

@@ -30,7 +30,7 @@ application-secret.properties
 *.nar
 /logs/
 
-# ===== OS =====
+# ===== OS =====GI
 .DS_Store
 Thumbs.db
 
