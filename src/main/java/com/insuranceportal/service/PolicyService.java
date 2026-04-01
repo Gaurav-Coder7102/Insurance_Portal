@@ -17,8 +17,10 @@ import com.insuranceportal.repository.MotorPolicyDetailRepository;
 import com.insuranceportal.repository.PolicyDocumentRepository;
 import com.insuranceportal.repository.PolicyRequestRepository;
 import jakarta.transaction.Transactional;
-import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
+import lombok.RequiredArgsConstructor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +38,7 @@ import java.util.List;
  */
 @Service
 @RequiredArgsConstructor
+@SuppressWarnings("null")
 public class PolicyService {
 
         private final PolicyRequestRepository policyRequestRepository;
@@ -43,6 +46,18 @@ public class PolicyService {
         private final LifePolicyDetailRepository lifePolicyDetailRepository;
         private final HealthPolicyDetailRepository healthPolicyDetailRepository;
         private final PolicyDocumentRepository policyDocumentRepository;
+        private final CloudinaryService cloudinaryService;
+
+        // =========================================================
+        // FETCHING QUOTE REQUESTS
+        // =========================================================
+
+        /**
+         * Fetch all policy quotes requests
+         */
+        public List<PolicyRequest> getAllQuoteRequests() {
+                return policyRequestRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
 
         // =========================================================
         // MOTOR INSURANCE
@@ -359,19 +374,22 @@ public class PolicyService {
         }
 
         /**
-         * Adds a single PolicyDocument to the list if the given DocumentDto is not
-         * null.
+         * Adds a single PolicyDocument to the list if the given MultipartFile is not null or empty.
          */
         private void addDocumentIfPresent(List<PolicyDocument> list, PolicyRequest policyRequest,
-                        String documentType, DocumentDto doc) {
-                if (doc == null)
+                        String documentType, MultipartFile file) {
+                if (file == null || file.isEmpty())
                         return;
+                
+                String secureUrl = cloudinaryService.upload(file);
+
                 list.add(PolicyDocument.builder()
                                 .policyRequest(policyRequest)
                                 .documentType(documentType)
-                                .originalName(doc.getOriginalName())
-                                .mimeType(doc.getMimeType())
-                                .fileSize(doc.getSize())
+                                .originalName(file.getOriginalFilename())
+                                .mimeType(file.getContentType())
+                                .fileSize(file.getSize())
+                                .cloudinaryUrl(secureUrl)
                                 .build());
         }
 
