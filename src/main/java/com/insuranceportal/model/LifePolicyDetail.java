@@ -1,5 +1,6 @@
 package com.insuranceportal.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -23,6 +24,7 @@ public class LifePolicyDetail {
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "policy_request_id", nullable = false, unique = true)
+    @JsonIgnore
     private PolicyRequest policyRequest;
 
     /** e.g. term-plan, ulip, endowment */

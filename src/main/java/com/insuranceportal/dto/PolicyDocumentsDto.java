@@ -1,10 +1,10 @@
 package com.insuranceportal.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * PolicyDocumentsDto — matches the "documents" object sent from the frontend.
@@ -32,18 +32,16 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true)
 public class PolicyDocumentsDto {
-
     /** RC Book — only present for Motor Insurance */
-    private DocumentDto rcBookDocument;
+    private MultipartFile rcBookDocument;
 
     /** PAN Card — all insurance types */
-    private DocumentDto panDocument;
+    private MultipartFile panDocument;
 
     /** Aadhaar Card — all insurance types */
-    private DocumentDto aadhaarCardDocument;
+    private MultipartFile aadhaarCardDocument;
 
     /** Previous insurance quote — all insurance types */
-    private DocumentDto previousInsuranceQuoteDocument;
+    private MultipartFile previousInsuranceQuoteDocument;
 }

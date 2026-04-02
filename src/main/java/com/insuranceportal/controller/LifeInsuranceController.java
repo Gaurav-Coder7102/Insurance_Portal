@@ -35,10 +35,10 @@ public class LifeInsuranceController {
     // POST /api/insurance/life
     // Save a new Life Insurance policy request
     // ---------------------------------------------------------
-    @PostMapping
-    @Operation(summary = "Save Life Insurance Policy", description = "Creates a new life insurance policy request with product, category, and document metadata.")
+    @PostMapping(consumes = {"multipart/form-data"})
+    @Operation(summary = "Save Life Insurance Policy", description = "Creates a new life insurance policy request with life details and documents.")
     public ResponseEntity<PolicyResponseDto> saveLifePolicy(
-            @Valid @RequestBody LifePolicyRequestDto dto) {
+            @Valid @ModelAttribute LifePolicyRequestDto dto) {
 
         PolicyResponseDto response = policyService.saveLifePolicy(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -48,11 +48,11 @@ public class LifeInsuranceController {
     // PUT /api/insurance/life/{id}
     // Update an existing Life Insurance policy request
     // ---------------------------------------------------------
-    @PutMapping("/{id}")
-    @Operation(summary = "Update Life Insurance Policy", description = "Updates an existing life insurance policy request identified by policy_request_id.")
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
+    @Operation(summary = "Update Life Insurance Policy", description = "Updates an existing life insurance policy request.")
     public ResponseEntity<PolicyResponseDto> updateLifePolicy(
             @Parameter(description = "ID of the policy request to update", required = true) @PathVariable Long id,
-            @Valid @RequestBody LifePolicyRequestDto dto) {
+            @Valid @ModelAttribute LifePolicyRequestDto dto) {
 
         PolicyResponseDto response = policyService.updateLifePolicy(id, dto);
         return ResponseEntity.ok(response);

@@ -1,5 +1,6 @@
 package com.insuranceportal.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -27,6 +28,7 @@ public class PolicyDocument {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "policy_request_id", nullable = false)
+    @JsonIgnore
     private PolicyRequest policyRequest;
 
     /** rcBook | pan | aadhaar | previousInsuranceQuote */
@@ -41,4 +43,7 @@ public class PolicyDocument {
 
     @Column(name = "file_size")
     private Long fileSize;
+
+    @Column(name = "cloudinary_url", length = 500)
+    private String cloudinaryUrl;
 }
