@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=builder /app/target/insurance-portal-backend-1.0.0-SNAPSHOT.jar app.jar
 
 # Expose the port your Spring Boot app runs on
-EXPOSE 9191
+EXPOSE 8080
 
 # Start the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
