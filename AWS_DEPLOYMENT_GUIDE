@@ -1,0 +1,553 @@
+# 🚀 Deploy Insurance Portal on AWS with Docker — Complete Beginner's Guide
+
+> **Your Project Summary:**
+> - **Type:** Spring Boot 3.2.3 REST API (Java 17)
+> - **Database:** PostgreSQL (already hosted on Neon cloud — ✅ no DB setup needed!)
+> - **Port:** `9191`
+> - **Artifact:** `insurance-portal-backend-1.0.0-SNAPSHOT.jar`
+
+---
+
+## 🗺️ Big Picture — What We Are Going to Do
+
+```
+Your PC  →  Build JAR  →  Build Docker Image  →  Push to AWS  →  Run on EC2
+```
+
+We will do these steps:
+1. Install required tools on your PC
+2. Create a `Dockerfile`
+3. Build the project JAR
+4. Build & test Docker image locally
+5. Create an AWS account & EC2 server
+6. Install Docker on the EC2 server
+7. Transfer & run your app on AWS
+
+---
+
+## ✅ PHASE 1 — Install Tools on Your Windows PC
+
+### Step 1.1 — Install Java 17 (JDK)
+> Skip if you already have Java 17 installed.
+
+1. Go to: https://adoptium.net/
+2. Download **Temurin 17 (LTS)**
+3. Install it (click Next → Next → Finish)
+4. Open **Command Prompt** and verify:
+```
+java -version
+```
+You should see something like: `openjdk version "17.x.x"`
+
+---
+
+### Step 1.2 — Install Maven
+> Skip if you already have Maven installed.
+
+1. Go to: https://maven.apache.org/download.cgi
+2. Download `apache-maven-3.9.x-bin.zip`
+3. Extract to `C:\maven`
+4. Add `C:\maven\bin` to your Windows PATH:
+   - Search "Environment Variables" in Start Menu
+   - Click "Edit the system environment variables"
+   - Click "Environment Variables"
+   - Under "System Variables", find `Path` → Edit → New → type `C:\maven\bin`
+5. Open a **new** Command Prompt and verify:
+```
+mvn -version
+```
+
+---
+
+### Step 1.3 — Install Docker Desktop
+1. Go to: https://www.docker.com/products/docker-desktop/
+2. Download and install **Docker Desktop for Windows**
+3. After install, **restart your PC**
+4. Open Docker Desktop (it must be running — you'll see a whale icon in the taskbar)
+5. Open Command Prompt and verify:
+```
+docker --version
+```
+You should see: `Docker version 24.x.x`
+
+---
+
+## ✅ PHASE 2 — Create the Dockerfile
+
+### Step 2.1 — Create Dockerfile in your project
+
+Create a file named **`Dockerfile`** (no extension!) in your project root:
+`d:\MYCOMPANY\INSURANCE_PORTAL\Dockerfile`
+
+> [!IMPORTANT]
+> The filename must be exactly `Dockerfile` with capital D and no extension like `.txt`
+
+Paste this content into the file:
+
+```dockerfile
+# ============================================================
+# Stage 1: Build the JAR using Maven
+# ============================================================
+FROM maven:3.9.6-eclipse-temurin-17 AS builder
+
+# Set working directory inside container
+WORKDIR /app
+
+# Copy pom.xml first (for dependency caching)
+COPY pom.xml .
+
+# Download all dependencies (cached layer)
+RUN mvn dependency:go-offline -B
+
+# Copy the rest of the source code
+COPY src ./src
+
+# Build the JAR (skip tests to speed up build)
+RUN mvn clean package -DskipTests -B
+
+# ============================================================
+# Stage 2: Run the JAR in a lightweight image
+# ============================================================
+FROM eclipse-temurin:17-jre-jammy
+
+# Set working directory
+WORKDIR /app
+
+# Copy only the built JAR from Stage 1
+COPY --from=builder /app/target/insurance-portal-backend-1.0.0-SNAPSHOT.jar app.jar
+
+# Expose the port your app runs on
+EXPOSE 9191
+
+# Run the application
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+---
+
+### Step 2.2 — Create a `.dockerignore` file
+
+Create a file named **`.dockerignore`** in your project root:
+`d:\MYCOMPANY\INSURANCE_PORTAL\.dockerignore`
+
+Paste this content:
+
+```
+target/
+.git/
+.gitignore
+.settings/
+.classpath
+.project
+*.md
+```
+
+> This tells Docker to ignore unnecessary files and makes the build faster.
+
+---
+
+## ✅ PHASE 3 — Build & Test Locally
+
+### Step 3.1 — Open Command Prompt in Your Project Folder
+
+1. Open **File Explorer**
+2. Go to `d:\MYCOMPANY\INSURANCE_PORTAL`
+3. Click on the address bar, type `cmd`, press Enter
+   *(This opens Command Prompt directly in your project folder)*
+
+---
+
+### Step 3.2 — Build the Docker Image
+
+Run this command:
+```bash
+docker build -t insurance-portal:latest .
+```
+
+> [!NOTE]
+> - `-t insurance-portal:latest` gives your image a name and tag
+> - `.` means "use the Dockerfile in the current folder"
+> - First run will take **5-10 minutes** (downloads Java + builds JAR). Subsequent builds are much faster.
+
+You should see output ending with:
+```
+Successfully built xxxxxxxx
+Successfully tagged insurance-portal:latest
+```
+
+---
+
+### Step 3.3 — Test the App Locally with Docker
+
+Run this command:
+```bash
+docker run -p 9191:9191 --name insurance-test insurance-portal:latest
+```
+
+> [!NOTE]
+> - `-p 9191:9191` maps your PC's port 9191 to the container's port 9191
+> - `--name insurance-test` gives the container a friendly name
+
+Open your browser and go to:
+```
+http://localhost:9191/swagger-ui.html
+```
+
+If you see the Swagger UI — **your Docker image works perfectly!** 🎉
+
+Stop the container when done:
+```bash
+docker stop insurance-test
+docker rm insurance-test
+```
+
+---
+
+## ✅ PHASE 4 — Set Up AWS Account
+
+### Step 4.1 — Create a Free AWS Account
+
+1. Go to: https://aws.amazon.com/free/
+2. Click **"Create a Free Account"**
+3. Fill in your email and set a password
+4. Enter your credit/debit card (required, but the **Free Tier** won't charge you)
+5. Verify your phone number
+6. Choose **"Basic Support (Free)"**
+7. Sign in to the **AWS Console**: https://console.aws.amazon.com/
+
+> [!IMPORTANT]
+> AWS Free Tier gives you **750 hours/month FREE** for EC2 `t2.micro` instances for 12 months. That's enough to run your app 24/7!
+
+---
+
+### Step 4.2 — Create an EC2 Key Pair (SSH Login Key)
+
+1. In AWS Console, search for **"EC2"** in the search bar → Click EC2
+2. In the left sidebar → Click **"Key Pairs"** (under Network & Security)
+3. Click **"Create key pair"**
+4. Settings:
+   - Name: `insurance-portal-key`
+   - Key pair type: `RSA`
+   - Private key file format: `.pem`
+5. Click **"Create key pair"**
+6. A file **`insurance-portal-key.pem`** will automatically download — **SAVE IT SAFELY!**
+
+> [!CAUTION]
+> You can only download this `.pem` file ONCE. If you lose it, you cannot SSH into your server. Save it to a safe location like `C:\Users\kadam\Downloads\`
+
+---
+
+## ✅ PHASE 5 — Launch an EC2 Server
+
+### Step 5.1 — Launch EC2 Instance
+
+1. In EC2 → Click **"Instances"** in the left sidebar
+2. Click the orange **"Launch Instances"** button
+3. Fill in the settings:
+
+**Name:**
+```
+insurance-portal-server
+```
+
+**Application and OS Images (AMI):**
+- Select **"Ubuntu"**
+- Choose **Ubuntu Server 22.04 LTS (Free tier eligible)**
+
+**Instance type:**
+- Select **`t2.micro`** ← This is FREE TIER eligible!
+
+**Key pair:**
+- Select **`insurance-portal-key`** (the one you just created)
+
+**Network Settings:**
+- Click **"Edit"**
+- Keep default VPC and subnet
+- For **"Firewall (security groups)"**, click **"Create security group"**
+- Name: `insurance-portal-sg`
+- Add these rules:
+
+| Type | Port | Source |
+|------|------|--------|
+| SSH | 22 | My IP (for you to connect) |
+| Custom TCP | 9191 | Anywhere (0.0.0.0/0) |
+| HTTP | 80 | Anywhere (0.0.0.0/0) |
+
+**Storage:**
+- Keep default (8 GB is fine)
+
+4. Click **"Launch Instance"** 🚀
+
+---
+
+### Step 5.2 — Find Your Server's Public IP
+
+1. Go to EC2 → Instances
+2. Click on your `insurance-portal-server` instance
+3. Find and copy the **"Public IPv4 address"** (example: `54.123.45.67`)
+4. **Save this IP — you'll need it!**
+
+> [!NOTE]
+> Wait 2-3 minutes for the instance to start. The "Instance State" should say **"running"** and the Status Check should say **"2/2 checks passed"**
+
+---
+
+## ✅ PHASE 6 — Connect to Your EC2 Server
+
+### Option A — Connect via AWS Console (Easiest — No Extra Tools Needed!)
+
+1. Select your instance in EC2 → Click **"Connect"** button (top right)
+2. Click **"EC2 Instance Connect"** tab
+3. Click **"Connect"**
+4. A browser terminal opens — you're now inside your server! ✅
+
+### Option B — Connect via SSH from Windows (PowerShell)
+
+1. Open **PowerShell** as Administrator
+2. Run:
+```powershell
+ssh -i "C:\Users\kadam\Downloads\insurance-portal-key.pem" ubuntu@YOUR_EC2_IP
+```
+*(Replace `YOUR_EC2_IP` with your actual IP)*
+
+If you get a permissions error, run this first:
+```powershell
+icacls "C:\Users\kadam\Downloads\insurance-portal-key.pem" /inheritance:r /grant:r "%USERNAME%:R"
+```
+
+---
+
+## ✅ PHASE 7 — Install Docker on EC2
+
+Run these commands **one by one** in the EC2 terminal:
+
+```bash
+# Step 1: Update the server
+sudo apt-get update -y
+
+# Step 2: Install Docker
+sudo apt-get install -y docker.io
+
+# Step 3: Start Docker service
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Step 4: Add your user to the docker group (so you don't need sudo)
+sudo usermod -aG docker ubuntu
+
+# Step 5: IMPORTANT — Log out and log back in for group change to take effect
+exit
+```
+
+After running `exit`, reconnect to your server (repeat Step 6), then verify Docker:
+```bash
+docker --version
+```
+You should see: `Docker version 24.x.x` ✅
+
+---
+
+## ✅ PHASE 8 — Transfer Your Docker Image to EC2
+
+We have **two easy options**. Choose Option A (recommended for beginners):
+
+---
+
+### Option A — Use Docker Hub (Free & Easy) ⭐ RECOMMENDED
+
+**On your Windows PC:**
+
+**Step 8A.1 — Create Docker Hub account**
+1. Go to: https://hub.docker.com/
+2. Sign up for free
+3. Your Docker Hub username will be something like `gaurav123`
+
+**Step 8A.2 — Log in to Docker Hub on your PC**
+```bash
+docker login
+```
+Enter your Docker Hub username and password.
+
+**Step 8A.3 — Tag and Push your image**
+```bash
+# Replace 'yourdockerhubusername' with YOUR actual Docker Hub username
+docker tag insurance-portal:latest yourdockerhubusername/insurance-portal:latest
+docker push yourdockerhubusername/insurance-portal:latest
+```
+
+Wait for the push to complete (2-5 minutes based on internet speed).
+
+**On your EC2 server:**
+
+**Step 8A.4 — Pull the image on EC2**
+```bash
+# Replace 'yourdockerhubusername' with YOUR Docker Hub username
+docker pull yourdockerhubusername/insurance-portal:latest
+```
+
+---
+
+### Option B — Build Directly on EC2 (No Docker Hub needed)
+
+**Step 8B.1 — Install Git on EC2**
+```bash
+sudo apt-get install -y git
+```
+
+**Step 8B.2 — Clone your project on EC2**
+```bash
+git clone https://github.com/Gaurav-Coder7102/Insurance_Portal.git
+cd Insurance_Portal
+```
+
+**Step 8B.3 — Install Maven on EC2**
+```bash
+sudo apt-get install -y maven
+```
+
+**Step 8B.4 — Build Docker image on EC2**
+```bash
+docker build -t insurance-portal:latest .
+```
+*(This will take 5-10 minutes)*
+
+---
+
+## ✅ PHASE 9 — Run Your App on AWS! 🎉
+
+### Step 9.1 — Start the Container
+
+Run this command on your EC2 server:
+
+```bash
+docker run -d \
+  -p 9191:9191 \
+  --name insurance-portal \
+  --restart always \
+  insurance-portal:latest
+```
+
+> [!NOTE]
+> - `-d` = run in background (detached mode)
+> - `--restart always` = auto-restart if server reboots
+> - `-p 9191:9191` = expose port 9191 to the internet
+
+### Step 9.2 — Check if it's Running
+
+```bash
+docker ps
+```
+
+You should see your container listed with status `Up X seconds`.
+
+### Step 9.3 — View Application Logs
+
+```bash
+docker logs insurance-portal
+```
+
+Look for: `Started InsurancePortalApplication in X.XXX seconds` ✅
+
+### Step 9.4 — Access Your App on the Internet! 🌍
+
+Open your browser and go to:
+```
+http://YOUR_EC2_IP:9191/swagger-ui.html
+```
+*(Replace `YOUR_EC2_IP` with your actual EC2 public IP)*
+
+**You should see your Insurance Portal Swagger UI — Your app is LIVE on AWS! 🎉🎉🎉**
+
+---
+
+## 🔧 Useful Docker Commands (Reference)
+
+| Command | What it does |
+|---------|-------------|
+| `docker ps` | Show running containers |
+| `docker ps -a` | Show all containers (including stopped) |
+| `docker logs insurance-portal` | View app logs |
+| `docker logs -f insurance-portal` | Live/follow logs |
+| `docker stop insurance-portal` | Stop the container |
+| `docker start insurance-portal` | Start a stopped container |
+| `docker restart insurance-portal` | Restart the container |
+| `docker rm insurance-portal` | Delete the container |
+| `docker images` | List all Docker images |
+
+---
+
+## 🔄 How to Update Your App (After Code Changes)
+
+Whenever you make code changes, follow these steps:
+
+**On your Windows PC:**
+```bash
+# 1. Build new image
+docker build -t insurance-portal:latest .
+
+# 2. Push to Docker Hub
+docker push yourdockerhubusername/insurance-portal:latest
+```
+
+**On your EC2 server:**
+```bash
+# 1. Pull the new image
+docker pull yourdockerhubusername/insurance-portal:latest
+
+# 2. Stop and remove old container
+docker stop insurance-portal
+docker rm insurance-portal
+
+# 3. Start new container
+docker run -d \
+  -p 9191:9191 \
+  --name insurance-portal \
+  --restart always \
+  yourdockerhubusername/insurance-portal:latest
+```
+
+---
+
+## 🆘 Troubleshooting
+
+### Problem: Can't access the app in browser
+- Check Security Group has port `9191` open to `0.0.0.0/0`
+- Run `docker ps` to verify container is running
+- Check logs: `docker logs insurance-portal`
+
+### Problem: Container exits immediately
+- View logs to see the error: `docker logs insurance-portal`
+- Usually a database connection issue or configuration problem
+
+### Problem: Docker build fails
+- Make sure Docker Desktop is running on your PC
+- Check you're in the correct project directory
+- Make sure the `Dockerfile` has no `.txt` extension
+
+### Problem: "Permission denied" when using docker on EC2
+- Run: `sudo usermod -aG docker ubuntu` then logout and login again
+
+### Problem: EC2 IP keeps changing after restart
+- Go to EC2 → Elastic IPs → Allocate Elastic IP → Associate with your instance
+- This gives you a permanent IP address (free while instance is running)
+
+---
+
+## 📋 Summary — Checklist
+
+- [ ] Java 17 installed on PC
+- [ ] Maven installed on PC  
+- [ ] Docker Desktop installed on PC
+- [ ] `Dockerfile` created in project root
+- [ ] `.dockerignore` created in project root
+- [ ] Docker image built locally: `docker build -t insurance-portal:latest .`
+- [ ] App tested locally at `http://localhost:9191/swagger-ui.html`
+- [ ] AWS account created
+- [ ] EC2 Key Pair created and `.pem` file saved
+- [ ] EC2 `t2.micro` instance launched (Ubuntu 22.04)
+- [ ] Security Group allows ports 22, 80, 9191
+- [ ] Connected to EC2 via SSH
+- [ ] Docker installed on EC2
+- [ ] Image transferred to EC2 (via Docker Hub or Git)
+- [ ] Container running: `docker run -d -p 9191:9191 --restart always ...`
+- [ ] App accessible at `http://YOUR_EC2_IP:9191/swagger-ui.html` 🎉
